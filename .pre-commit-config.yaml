@@ -1,0 +1,31 @@
+# Pre-commit hooks for local TravelGuard quality checks before commits.
+repos:
+  # Ruff provides both linting and formatting hooks for Python code.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Pin a Ruff hook version compatible with the requirements.txt range.
+    rev: v0.14.10
+    # Define hooks from this repository.
+    hooks:
+      # Ruff lint hook catches style issues and common bugs.
+      - id: ruff
+        # Automatically fix issues that Ruff can safely fix.
+        args: [--fix]
+      # Ruff format hook keeps Python formatting consistent.
+      - id: ruff-format
+
+  # Pre-commit built-in hooks catch common repository hygiene problems.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    # Pin a stable pre-commit-hooks version.
+    rev: v6.0.0
+    # Define hooks from this repository.
+    hooks:
+      # Prevent large accidental files from entering the repository.
+      - id: check-added-large-files
+      # Ensure YAML files are syntactically valid.
+      - id: check-yaml
+      # Ensure TOML files are syntactically valid.
+      - id: check-toml
+      # Ensure files end with a newline.
+      - id: end-of-file-fixer
+      # Remove trailing whitespace.
+      - id: trailing-whitespace

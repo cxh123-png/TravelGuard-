@@ -1,0 +1,179 @@
+# Docker Compose file for optional local infrastructure used by TravelGuard M1.
+services:
+  # PostgreSQL is the primary relational database for requests, policies, budgets, approvals, and audits.
+  postgres:
+    # Use a stable PostgreSQL version that is widely supported by SQLAlchemy and Alembic.
+    image: postgres:16-alpine
+    # Give the database container a predictable local name for debugging.
+    container_name: travelguard-postgres
+    # Restart automatically unless the developer explicitly stops the service.
+    restart: unless-stopped
+    # Define local development database credentials; production and VM settings should live in .env instead.
+    environment:
+      # POSTGRES_DB creates the default database on first startup.
+      POSTGRES_DB: travelguard
+      # POSTGRES_USER creates the local database user.
+      POSTGRES_USER: travelguard_user
+      # POSTGRES_PASSWORD creates the local database password.
+      POSTGRES_PASSWORD: 123456
+    # Expose PostgreSQL to the host machine for local development tools.
+    ports:
+      # Host port 5432 maps to container port 5432.
+      - "5432:5432"
+    # Persist PostgreSQL data across container restarts.
+    volumes:
+      # Named volume stores database files outside the container lifecycle.
+      - postgres_data:/var/lib/postgresql/data
+    # Health check lets Compose and developers see whether PostgreSQL is ready.
+    healthcheck:
+      # pg_isready checks whether the configured database accepts connections.
+      test: ["CMD-SHELL", "pg_isready -U travelguard_user -d travelguard"]
+      # Check every 10 seconds.
+      interval: 10s
+      # Fail a single check after 5 seconds.
+      timeout: 5s
+      # Retry five times before marking the service unhealthy.
+      retries: 5
+
+  # Redis is reserved for cache, Celery broker, and short-lived coordination state.
+  redis:
+    # Use Redis Alpine image to keep local infrastructure lightweight.
+    image: redis:7-alpine
+    # Give the Redis container a predictable local name for debugging.
+    container_name: travelguard-redis
+    # Restart automatically unless the developer explicitly stops the service.
+    restart: unless-stopped
+    # Expose Redis to the host machine for local development tools.
+    ports:
+      # Host port 6379 maps to container port 6379.
+      - "6379:6379"
+    # Health check confirms Redis responds to ping.
+    healthcheck:
+      # redis-cli ping returns PONG when Redis is ready.
+      test: ["CMD", "redis-cli", "ping"]
+      # Check every 10 seconds.
+      interval: 10s
+      # Fail a single check after 5 seconds.
+      timeout: 5s
+      # Retry five times before marking the service unhealthy.
+      retries: 5
+
+  # MinIO is reserved for policy files, invoices, and other object storage needs.
+  minio:
+    # Use the official MinIO image for S3-compatible local object storage.
+    image: minio/minio:latest
+    # Give the MinIO container a predictable local name for debugging.
+    container_name: travelguard-minio
+    # Restart automatically unless the developer explicitly stops the service.
+    restart: unless-stopped
+    # Define local MinIO credentials; VM or production credentials should live outside git.
+    environment:
+      # MINIO_ROOT_USER is the local development access key.
+      MINIO_ROOT_USER: travelguard_minio
+      # MINIO_ROOT_PASSWORD is the local development secret key.
+      MINIO_ROOT_PASSWORD: 12345678
+    # Start MinIO object server and expose the console.
+    command: server /data --console-address ":9001"
+    # Expose API and console ports to the host machine.
+    ports:
+      # Host port 9000 maps to the S3-compatible API.
+      - "9000:9000"
+      # Host port 9001 maps to the MinIO web console.
+      - "9001:9001"
+    # Persist uploaded files across container restarts.
+    volumes:
+      # Named volume stores MinIO object data outside the container lifecycle.
+      - minio_data:/data
+    # Health check confirms MinIO is accepting local API requests.
+    healthcheck:
+      # MinIO exposes a lightweight liveness endpoint on the API port.
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      # Check every 10 seconds.
+      interval: 10s
+      # Fail a single check after 5 seconds.
+      timeout: 5s
+      # Retry five times before marking the service unhealthy.
+      retries: 5
+
+  # Etcd stores Milvus metadata in standalone mode.
+  etcd:
+    # Use an etcd image compatible with Milvus standalone deployments.
+    image: quay.io/coreos/etcd:v3.5.18
+    # Give the etcd container a predictable local name for debugging.
+    container_name: travelguard-etcd
+    # Restart automatically unless the developer explicitly stops the service.
+    restart: unless-stopped
+    # Configure etcd to listen inside the Compose network.
+    command:
+      # Run the etcd server process.
+      - etcd
+      # Store etcd data in a mounted data directory.
+      - --data-dir=/etcd
+      # Listen for client connections from other containers.
+      - --listen-client-urls=http://0.0.0.0:2379
+      # Advertise the internal Compose hostname to Milvus.
+      - --advertise-client-urls=http://etcd:2379
+      # Keep the development deployment simple by disabling auth.
+      - --auth-token=simple
+    # Persist etcd metadata across container restarts.
+    volumes:
+      # Named volume stores etcd data outside the container lifecycle.
+      - etcd_data:/etcd
+    # Health check confirms etcd responds to status requests.
+    healthcheck:
+      # etcdctl endpoint health returns success once etcd is ready.
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      # Check every 10 seconds.
+      interval: 10s
+      # Fail a single check after 5 seconds.
+      timeout: 5s
+      # Retry five times before marking the service unhealthy.
+      retries: 5
+
+  # Milvus is reserved for later policy RAG vector search work.
+  milvus:
+    # Use Milvus standalone image for local vector database experiments.
+    image: milvusdb/milvus:v2.6.0
+    # Give the Milvus container a predictable local name for debugging.
+    container_name: travelguard-milvus
+    # Restart automatically unless the developer explicitly stops the service.
+    restart: unless-stopped
+    # Configure Milvus to use the Compose etcd and MinIO services.
+    environment:
+      # ETCD_ENDPOINTS tells Milvus where to store metadata.
+      ETCD_ENDPOINTS: etcd:2379
+      # MINIO_ADDRESS tells Milvus where object storage is available inside Compose.
+      MINIO_ADDRESS: minio:9000
+      # MINIO_ACCESS_KEY_ID must match the MinIO root user above.
+      MINIO_ACCESS_KEY_ID: travelguard_minio
+      # MINIO_SECRET_ACCESS_KEY must match the MinIO root password above.
+      MINIO_SECRET_ACCESS_KEY: 12345678
+    # Run Milvus in standalone mode for local development.
+    command: ["milvus", "run", "standalone"]
+    # Start Milvus only after its metadata store and object store are available.
+    depends_on:
+      # Wait for etcd container startup.
+      - etcd
+      # Wait for MinIO container startup.
+      - minio
+    # Expose Milvus ports to the host machine.
+    ports:
+      # Host port 19530 maps to the Milvus gRPC API.
+      - "19530:19530"
+      # Host port 9091 maps to the Milvus metrics/health endpoint.
+      - "9091:9091"
+    # Persist vector data across container restarts.
+    volumes:
+      # Named volume stores Milvus data outside the container lifecycle.
+      - milvus_data:/var/lib/milvus
+
+# Named volumes keep service data outside individual container lifecycles.
+volumes:
+  # PostgreSQL data volume.
+  postgres_data:
+  # MinIO data volume.
+  minio_data:
+  # Etcd metadata volume.
+  etcd_data:
+  # Milvus data volume.
+  milvus_data:
