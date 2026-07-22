@@ -4,6 +4,8 @@ from fastapi import Depends, FastAPI
 
 from src.api.dependencies import CurrentUser, get_current_user
 from src.api.error_handlers import register_error_handlers
+from src.api.v1.approvals.router import router as approval_router
+from src.api.v1.budgets.router import router as budget_router
 from src.api.v1.travel.router import router as travel_router
 from src.core.config import get_settings
 from src.core.request_id import RequestIdMiddleware
@@ -38,6 +40,8 @@ def register_routes(application: FastAPI, api_prefix: str) -> None:
 
     # M2 差旅接口
     application.include_router(travel_router, prefix=api_prefix)
+    application.include_router(budget_router, prefix=api_prefix)
+    application.include_router(approval_router, prefix=api_prefix)
 
 
 app = create_app()
