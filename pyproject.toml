@@ -1,0 +1,79 @@
+# 声明构建系统配置，让 Python 工具知道这个项目使用标准 setuptools 构建后端。
+[build-system]
+# 指定构建项目时需要的基础工具包，setuptools 负责打包，wheel 负责生成 wheel 包。
+requires = ["setuptools>=75.0", "wheel"]
+# 指定 PEP 517 构建入口，保持项目后续可以被标准 Python 工具识别。
+build-backend = "setuptools.build_meta"
+
+# 声明项目基础信息，方便测试、类型检查和后续安装命令统一识别 TravelGuard。
+[project]
+# 设置项目包名，使用短横线格式是 Python 项目发布和安装时的常见写法。
+name = "travelguard-ai"
+# 设置当前工程骨架版本，M1 第一版先从 0.1.0 开始。
+version = "0.1.0"
+# 简短描述项目用途，方便工具和 PR 审阅者快速理解仓库目标。
+description = "TravelGuard AI enterprise travel compliance and expense control backend."
+# 指定 README 文件，后续如果构建包，工具会把它作为项目长描述来源。
+readme = "README.md"
+# 声明最低 Python 版本，和 requirements.txt 里的 Python 3.11.x 要求保持一致。
+requires-python = ">=3.11,<3.12"
+
+# 配置 setuptools 的包发现规则，让它只把 src 目录下的 Python 包纳入项目。
+[tool.setuptools.packages.find]
+# 指定源码根目录，避免把 docs、tests 等非运行时代码误当成包。
+where = ["."]
+# 指定需要发现的包名模式，目前项目使用 src 作为顶层包。
+include = ["src*"]
+
+# 配置 pytest，让所有成员用同一套测试发现规则和运行参数。
+[tool.pytest.ini_options]
+# 指定测试目录，避免 pytest 扫描 docs 或其他非测试目录。
+testpaths = ["tests"]
+# 指定测试文件命名规则，统一使用 test_ 开头的 Python 文件。
+python_files = ["test_*.py"]
+# 指定测试函数命名规则，统一使用 test_ 开头的函数。
+python_functions = ["test_*"]
+# 添加默认参数，-ra 展示跳过/失败摘要，--strict-markers 避免误写 marker。
+addopts = "-ra --strict-markers"
+
+# 配置 Ruff 的基础规则，用于统一代码风格和常见错误检查。
+[tool.ruff]
+# 指定项目代码最大行宽；当前教学注释较多，先放宽到 140，避免为了折行牺牲可读性。
+line-length = 140
+# 指定 Ruff 按 Python 3.11 语法和标准库能力检查代码。
+target-version = "py311"
+# 指定 Ruff 检查时排除本地生成目录和虚拟环境。
+exclude = [".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv", "__pycache__"]
+
+# 配置 Ruff lint 规则集合，覆盖 pycodestyle、pyflakes、import 排序和现代 Python 建议。
+[tool.ruff.lint]
+# 选择常用工程规则：E/W 格式，F 语法/未使用，I 导入排序，UP 现代化，B 常见 bug。
+select = ["E", "W", "F", "I", "UP", "B"]
+# 暂不启用额外忽略规则，保持 M1 第一版质量门禁清晰。
+ignore = []
+
+# 配置 Ruff 格式化行为，让代码格式在不同成员机器上保持一致。
+[tool.ruff.format]
+# 使用双引号，和 FastAPI/Python 社区常见格式保持一致。
+quote-style = "double"
+# 使用空格缩进，遵循 Python 官方 PEP 8 风格。
+indent-style = "space"
+# 保留自动识别换行符，兼容 Windows 开发环境。
+line-ending = "auto"
+
+# 配置 mypy 类型检查，让公共工程代码尽早暴露类型问题。
+[tool.mypy]
+# 指定 Python 版本，和项目运行版本保持一致。
+python_version = "3.11"
+# 要求函数必须写类型标注，保证公共基础代码对后续成员更清楚。
+disallow_untyped_defs = true
+# 对 Optional 使用保持严格，避免 None 相关错误被隐藏。
+strict_optional = true
+# 警告没有实际作用的 type: ignore，避免长期留下无效豁免。
+warn_unused_ignores = true
+# 警告无法到达的代码，帮助发现分支逻辑错误。
+warn_unreachable = true
+# 显示错误码，方便成员搜索和定向修复 mypy 报错。
+show_error_codes = true
+# 暂时允许第三方库缺少类型声明，避免 M1 第一版被外部依赖类型包卡住。
+ignore_missing_imports = true

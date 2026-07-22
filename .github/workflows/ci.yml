@@ -1,0 +1,81 @@
+# GitHub Actions workflow for TravelGuard backend quality checks.
+name: CI
+
+# Run checks whenever a pull request targets main.
+on:
+  # Pull requests are the normal review path for team collaboration.
+  pull_request:
+    # Only PRs targeting main need this integration gate.
+    branches: [main]
+  # Manual dispatch lets maintainers re-run CI from the GitHub UI.
+  workflow_dispatch:
+
+# Define all jobs in this workflow.
+jobs:
+  # Backend job validates the Python M1 engineering platform.
+  backend:
+    # Use the latest Ubuntu runner for consistent CI behavior.
+    runs-on: ubuntu-latest
+    # Define the Python versions used by this job.
+    strategy:
+      # Do not cancel all matrix jobs if one version fails.
+      fail-fast: false
+      # M1 currently supports Python 3.11 only.
+      matrix:
+        # Python 3.11 matches requirements.txt and pyproject.toml.
+        python-version: ["3.11"]
+    # Job steps execute in order.
+    steps:
+      # Check out the pull request source code.
+      - name: Check out repository
+        # Use the official checkout action.
+        uses: actions/checkout@v5
+
+      # Install the requested Python version.
+      - name: Set up Python
+        # Use the official Python setup action.
+        uses: actions/setup-python@v6
+        # Pass the selected matrix Python version to the action.
+        with:
+          # Python version comes from the matrix above.
+          python-version: ${{ matrix.python-version }}
+
+      # Install backend dependencies from requirements.txt.
+      - name: Install dependencies
+        # Use python -m pip to ensure the active interpreter owns the install.
+        run: python -m pip install -r requirements.txt
+
+      # Run Ruff lint checks.
+      - name: Ruff lint
+        # Check source and tests for style and common bug patterns.
+        run: python -m ruff check src tests
+
+      # Run Ruff format verification.
+      - name: Ruff format check
+        # Ensure code is already formatted and CI does not rewrite files.
+        run: python -m ruff format --check src tests
+
+      # Run mypy type checks.
+      - name: Mypy
+        # Type-check the application source package.
+        run: python -m mypy src
+
+      # Run tests that do not require external databases or providers.
+      - name: Pytest
+        # Execute integration tests currently safe for CI without real services.
+        run: python -m pytest tests/integration -v
+
+  # Frontend placeholder job keeps the future M7 workflow visible without failing before frontend exists.
+  frontend-placeholder:
+    # Use the latest Ubuntu runner for a lightweight existence check.
+    runs-on: ubuntu-latest
+    # Job steps execute in order.
+    steps:
+      # Check out the pull request source code.
+      - name: Check out repository
+        # Use the official checkout action.
+        uses: actions/checkout@v5
+      # Detect whether frontend has been initialized.
+      - name: Frontend not initialized yet
+        # Print a clear message instead of failing before M7 creates frontend/.
+        run: echo "frontend/ is not initialized yet; M7 will enable lint/typecheck/test later."
