@@ -35,6 +35,11 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 # 添加默认参数，-ra 展示跳过/失败摘要，--strict-markers 避免误写 marker。
 addopts = "-ra --strict-markers"
+# 让 pytest 能找到 src 包，并自动启用 asyncio 模式。
+pythonpath = ["."]
+asyncio_mode = "auto"
+# 注册 asyncio marker，避免 strict-markers 报错（需安装 pytest-asyncio）。
+markers = ["asyncio: asyncio test marker"]
 
 # 配置 Ruff 的基础规则，用于统一代码风格和常见错误检查。
 [tool.ruff]
@@ -49,8 +54,8 @@ exclude = [".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv", "__py
 [tool.ruff.lint]
 # 选择常用工程规则：E/W 格式，F 语法/未使用，I 导入排序，UP 现代化，B 常见 bug。
 select = ["E", "W", "F", "I", "UP", "B"]
-# 暂不启用额外忽略规则，保持 M1 第一版质量门禁清晰。
-ignore = []
+# FastAPI 依赖注入使用 Depends 在参数默认值中是标准模式，B008 对此误报。
+ignore = ["B008"]
 
 # 配置 Ruff 格式化行为，让代码格式在不同成员机器上保持一致。
 [tool.ruff.format]
